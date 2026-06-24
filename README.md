@@ -1,4 +1,4 @@
-HEAD
+<<<<<<< HEAD
 # 🛡️ PhantomShield AI
 
 **A unified cybersecurity platform — Phishing Analyzer, URL Scanner, Security
