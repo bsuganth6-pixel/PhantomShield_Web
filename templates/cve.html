@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}CVE Intelligence — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-bug"></i> CVE Intelligence</h1>
+  <p>Search the National Vulnerability Database by product/keyword, or look up a specific CVE ID.</p>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-magnifying-glass"></i> Search</div>
+  <div class="field-row">
+    <div class="field">
+      <label>Keyword / Product Name</label>
+      <input type="text" id="keyword" placeholder="e.g. apache log4j, wordpress, openssl">
+    </div>
+    <div class="field">
+      <label>Or Specific CVE ID</label>
+      <input type="text" id="cveId" placeholder="e.g. CVE-2021-44228">
+    </div>
+  </div>
+  <button class="btn btn-primary" id="searchBtn" onclick="runSearch()">
+    <i class="fa-solid fa-magnifying-glass"></i> Search CVEs
+  </button>
+  <div class="loader" id="loader"><div class="spinner"></div> Querying NVD database...</div>
+</div>
+
+<div id="results"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runSearch() {
+  const keyword = document.getElementById("keyword").value.trim();
+  const cveId = document.getElementById("cveId").value.trim();
+  if (!keyword && !cveId) { alert("Enter a keyword or CVE ID."); return; }
+
+  const btn = document.getElementById("searchBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/cve/search", { keyword, cve_id: cveId });
+
+  PS.setLoading(loader, btn, false);
+  render(result);
+}
+
+const sevColor = { CRITICAL: "#FF3B5C", HIGH: "#FF9F1C", MEDIUM: "#FFD23F", LOW: "#00FF88" };
+
+function render(r) {
+  const el = document.getElementById("results");
+  if (r.error) { el.innerHTML = `<div class="card"><p style="color:var(--red)">${PS.esc(r.error)}</p></div>`; return; }
+
+  let html = `<div class="card result-section">
+    <div class="card-title">
+      <i class="fa-solid fa-database"></i> ${r.total_results} Result(s)
+      <span class="badge ${r.source.includes('OFFLINE') ? 'badge-medium' : 'badge-low'}" style="margin-left:auto">${PS.esc(r.source)}</span>
+    </div>`;
+
+  if (r.error_detail || (r.source && r.source.includes("OFFLINE"))) {
+    html += `<p style="color:var(--text-mid); font-size:12.5px; margin-bottom:16px"><i class="fa-solid fa-circle-info"></i> Live NVD API unreachable — showing offline sample data. ${r.error ? PS.esc(r.error) : ''}</p>`;
+  }
+
+  if (!r.results.length) {
+    html += `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>No CVEs found for this query.</p></div>`;
+  }
+
+  r.results.forEach(cve => {
+    const color = sevColor[cve.severity] || "#9aa3b8";
+    html += `
+      <div class="indicator" style="border-left-color:${color}; flex-direction:column; gap:8px">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
+          <strong class="mono" style="font-size:14.5px">${PS.esc(cve.id)}</strong>
+          <div style="display:flex; gap:8px; align-items:center">
+            <span class="badge" style="background:${color}22; color:${color}; border:1px solid ${color}44">${PS.esc(cve.severity)} ${cve.cvss ? '· CVSS ' + cve.cvss : ''}</span>
+            <span class="mono" style="font-size:11px; color:var(--text-low)">${PS.esc(cve.published || '')}</span>
+          </div>
+        </div>
+        <span style="font-size:13px; color:var(--text-mid); line-height:1.6">${PS.esc(cve.summary)}</span>
+        ${cve.references && cve.references.length ? `
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px">
+            ${cve.references.map(ref => `<a href="${PS.esc(ref)}" target="_blank" class="url-pill mono" style="color:var(--cyan)"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px"></i> ${PS.esc(new URL(ref).hostname)}</a>`).join("")}
+          </div>` : ''}
+      </div>`;
+  });
+
+  html += `</div>`;
+  el.innerHTML = html;
+}
+</script>
+{% endblock %}

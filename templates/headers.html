@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Security Headers — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-lock"></i> Security Header Checker</h1>
+  <p>Fetch a live website and grade its HTTP security headers — CSP, HSTS, X-Frame-Options, and more.</p>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-globe"></i> Target Website</div>
+  <div class="field">
+    <label>Website URL</label>
+    <input type="text" id="urlInput" placeholder="https://example.com">
+  </div>
+  <button class="btn btn-primary" id="checkBtn" onclick="runCheck()">
+    <i class="fa-solid fa-magnifying-glass"></i> Check Headers
+  </button>
+  <div class="loader" id="loader"><div class="spinner"></div> Fetching headers...</div>
+</div>
+
+<div id="results"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runCheck() {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) { alert("Please enter a URL."); return; }
+
+  const btn = document.getElementById("checkBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/headers/check", { url });
+
+  PS.setLoading(loader, btn, false);
+  render(result);
+}
+
+function render(r) {
+  const el = document.getElementById("results");
+  if (r.error) {
+    el.innerHTML = `<div class="card"><p style="color:var(--red)"><i class="fa-solid fa-triangle-exclamation"></i> Could not fetch URL: ${PS.esc(r.error)}</p></div>`;
+    return;
+  }
+
+  const gradeColors = { A: "#00FF88", B: "#00F5FF", C: "#FFD23F", D: "#FF9F1C", F: "#FF3B5C" };
+  const gc = gradeColors[r.grade] || "#9aa3b8";
+
+  let html = `<div class="card result-section">
+    <div class="score-wrap">
+      <div class="gauge">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle class="gauge-bg" cx="55" cy="55" r="45"></circle>
+          <circle class="gauge-fill" cx="55" cy="55" r="45" stroke="${gc}"
+            stroke-dasharray="${2*Math.PI*45}" stroke-dashoffset="${2*Math.PI*45*(1-r.score_pct/100)}"></circle>
+        </svg>
+        <div class="gauge-label">
+          <span class="gauge-num" style="color:${gc}; font-size:32px">${r.grade}</span>
+          <span class="gauge-max">${r.score_pct}%</span>
+        </div>
+      </div>
+      <div>
+        <div class="verdict-text" style="color:${gc}">Grade ${r.grade}</div>
+        <div class="verdict-sub">${PS.esc(r.final_url)} · HTTP ${r.status_code}</div>
+      </div>
+    </div>
+  </div>`;
+
+  html += `<div class="card result-section">
+    <div class="card-title"><i class="fa-solid fa-list-check"></i> Header Breakdown</div>
+    <table>
+      <tr><th>Header</th><th>Status</th><th>Value / Recommendation</th></tr>
+      ${r.results.map(h => `
+        <tr>
+          <td class="mono">${PS.esc(h.header)}</td>
+          <td>${h.present ? '<span class="badge badge-low">PRESENT</span>' : '<span class="badge badge-high">MISSING</span>'}</td>
+          <td>
+            ${h.present
+              ? `<span class="mono" style="font-size:11.5px;color:var(--text-mid)">${PS.esc((h.value||'').slice(0,80))}</span>`
+              : `<span style="font-size:12px;color:var(--text-mid)">${PS.esc(h.description)}<br><span class="mono" style="color:var(--cyan)">${PS.esc(h.recommendation)}</span></span>`}
+          </td>
+        </tr>`).join("")}
+    </table>
+  </div>`;
+
+  if (r.info_leaks && r.info_leaks.length) {
+    html += `<div class="card result-section">
+      <div class="card-title"><i class="fa-solid fa-circle-info"></i> Information Disclosure</div>
+      ${r.info_leaks.map(l => PS.indicator({type: l.header, severity: "low",
+        detail: `Server reveals: "${l.value}" — consider suppressing this header to reduce fingerprinting.`})).join("")}
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+</script>
+{% endblock %}

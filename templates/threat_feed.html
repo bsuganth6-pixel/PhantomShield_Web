@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Threat Feed Search — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-satellite-dish"></i> Threat Feed Search</h1>
+  <p>Look up an IP address, domain, or file hash against open-source threat intelligence feeds.</p>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-magnifying-glass"></i> Indicator of Compromise (IOC)</div>
+  <div class="field">
+    <label>IP / Domain / MD5 / SHA256</label>
+    <input type="text" id="iocInput" placeholder="e.g. 185.220.101.45 or evil-domain.com">
+  </div>
+  <button class="btn btn-primary" id="searchBtn" onclick="runSearch()">
+    <i class="fa-solid fa-magnifying-glass"></i> Search Threat Feeds
+  </button>
+  <div class="loader" id="loader"><div class="spinner"></div> Querying threat intelligence feeds...</div>
+</div>
+
+<div id="results"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runSearch() {
+  const ioc = document.getElementById("iocInput").value.trim();
+  if (!ioc) { alert("Enter an IP, domain, or hash."); return; }
+
+  const btn = document.getElementById("searchBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/threatfeed/search", { ioc });
+
+  PS.setLoading(loader, btn, false);
+  render(result);
+}
+
+function render(r) {
+  const el = document.getElementById("results");
+  if (r.error) { el.innerHTML = `<div class="card"><p style="color:var(--red)">${PS.esc(r.error)}</p></div>`; return; }
+
+  const verdictColor = r.verdict.includes("MALICIOUS") ? "#FF3B5C"
+                      : r.verdict.includes("SUSPICIOUS") ? "#FFD23F" : "#00FF88";
+
+  let html = `<div class="card result-section">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px">
+      <div>
+        <div class="verdict-text" style="color:${verdictColor}">${PS.esc(r.verdict)}</div>
+        <div class="verdict-sub">IOC: <span class="mono">${PS.esc(r.ioc)}</span> · Type: <span class="badge badge-info">${PS.esc(r.ioc_type.toUpperCase())}</span></div>
+      </div>
+    </div>
+  </div>`;
+
+  // ThreatFox
+  const tf = r.sources.threatfox;
+  html += `<div class="card result-section">
+    <div class="card-title"><i class="fa-solid fa-fire"></i> abuse.ch ThreatFox</div>`;
+  if (tf.error) {
+    html += `<p style="color:var(--text-mid)">Unreachable: ${PS.esc(tf.error)}</p>`;
+  } else if (!tf.found) {
+    html += `<p style="color:var(--green)"><i class="fa-solid fa-circle-check"></i> No matches found in ThreatFox database.</p>`;
+  } else {
+    html += `<table><tr><th>Malware</th><th>Threat Type</th><th>Confidence</th><th>First Seen</th></tr>
+      ${tf.entries.map(e => `<tr>
+        <td>${PS.esc(e.malware)}</td>
+        <td class="mono">${PS.esc(e.threat_type)}</td>
+        <td><span class="badge badge-high">${e.confidence}%</span></td>
+        <td class="mono" style="font-size:11px">${PS.esc(e.first_seen)}</td>
+      </tr>`).join("")}
+    </table>`;
+  }
+  html += `</div>`;
+
+  // OTX
+  if (r.sources.otx) {
+    const otx = r.sources.otx;
+    html += `<div class="card result-section">
+      <div class="card-title"><i class="fa-solid fa-globe"></i> AlienVault OTX</div>`;
+    if (!otx.available) {
+      html += `<p style="color:var(--text-mid)">${PS.esc(otx.reason)}</p>`;
+    } else {
+      html += `<p>Found in <span class="badge ${otx.pulse_count>0?'badge-high':'badge-low'}">${otx.pulse_count} threat pulse(s)</span></p>`;
+      if (otx.pulse_names && otx.pulse_names.length) {
+        html += `<div style="margin-top:8px">${otx.pulse_names.map(n=>`<span class="url-pill">${PS.esc(n)}</span>`).join("")}</div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  // AbuseIPDB
+  if (r.sources.abuseipdb) {
+    const ab = r.sources.abuseipdb;
+    html += `<div class="card result-section">
+      <div class="card-title"><i class="fa-solid fa-network-wired"></i> AbuseIPDB</div>`;
+    if (!ab.available) {
+      html += `<p style="color:var(--text-mid)">${PS.esc(ab.reason)}</p>`;
+    } else {
+      const score = ab.abuse_confidence_score || 0;
+      html += `<div class="score-wrap">
+        ${PS.gauge(score, "/ 100")}
+        <div>
+          <p style="font-size:13px">Abuse confidence: <strong style="color:${PS.scoreColor(score)}">${score}%</strong></p>
+          <p style="font-size:12.5px; color:var(--text-mid)">Reports: ${ab.total_reports} · Country: ${PS.esc(ab.country||'?')} · ISP: ${PS.esc(ab.isp||'?')}</p>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  el.innerHTML = html;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}PhantomShield AI{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="matrix-bg"></canvas>
+
+<div class="app-shell">
+  <!-- ───────────── SIDEBAR ───────────── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="brand-text">
+        <span class="brand-name">PHANTOM<span class="accent">SHIELD</span></span>
+        <span class="brand-sub">AI SECURITY PLATFORM</span>
+      </div>
+    </div>
+
+    <nav class="nav-modules">
+      <a href="/" class="nav-item {{ 'active' if active=='dashboard' else '' }}">
+        <i class="fa-solid fa-grid-2"></i><span>Dashboard</span>
+      </a>
+      <a href="/phishing" class="nav-item {{ 'active' if active=='phishing' else '' }}">
+        <i class="fa-solid fa-envelope-circle-check"></i><span>Phishing Analyzer</span>
+      </a>
+      <a href="/url-scanner" class="nav-item {{ 'active' if active=='url' else '' }}">
+        <i class="fa-solid fa-link-slash"></i><span>URL Scanner</span>
+      </a>
+      <a href="/headers" class="nav-item {{ 'active' if active=='headers' else '' }}">
+        <i class="fa-solid fa-lock"></i><span>Security Headers</span>
+      </a>
+      <a href="/cve" class="nav-item {{ 'active' if active=='cve' else '' }}">
+        <i class="fa-solid fa-bug"></i><span>CVE Intelligence</span>
+      </a>
+      <a href="/malware" class="nav-item {{ 'active' if active=='malware' else '' }}">
+        <i class="fa-solid fa-file-circle-exclamation"></i><span>Malware Analysis</span>
+      </a>
+      <a href="/threat-feed" class="nav-item {{ 'active' if active=='threatfeed' else '' }}">
+        <i class="fa-solid fa-satellite-dish"></i><span>Threat Feed Search</span>
+      </a>
+      <a href="/assistant" class="nav-item {{ 'active' if active=='assistant' else '' }}">
+        <i class="fa-solid fa-robot"></i><span>AI Assistant</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-pill" id="api-status-pill">
+        <span class="dot"></span> <span id="api-status-text">Checking modules…</span>
+      </div>
+      <div class="footer-credit">Built by <span class="accent">Suganth B</span></div>
+    </div>
+  </aside>
+
+  <!-- ───────────── MAIN ───────────── -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/matrix.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

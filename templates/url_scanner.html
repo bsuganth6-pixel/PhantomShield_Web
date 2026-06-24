@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}URL Scanner — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-link-slash"></i> URL Scanner</h1>
+  <p>Inspect any URL for phishing/malware indicators using lexical analysis, DNS resolution, and optional VirusTotal reputation lookup.</p>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-link"></i> Target URL</div>
+  <div class="field">
+    <label>URL to Scan</label>
+    <input type="text" id="urlInput" placeholder="https://example.com/login/verify-account">
+  </div>
+  <div class="checkbox-row">
+    <input type="checkbox" id="checkVt"> <label style="margin:0">Also check VirusTotal (requires VT_API_KEY + internet)</label>
+  </div>
+  <button class="btn btn-primary" id="scanBtn" onclick="runScan()">
+    <i class="fa-solid fa-magnifying-glass"></i> Scan URL
+  </button>
+  <div class="loader" id="loader"><div class="spinner"></div> Scanning URL...</div>
+</div>
+
+<div id="results"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runScan() {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) { alert("Please enter a URL."); return; }
+
+  const btn = document.getElementById("scanBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/url/scan", {
+    url: url,
+    check_vt: document.getElementById("checkVt").checked,
+  });
+
+  PS.setLoading(loader, btn, false);
+  render(result);
+}
+
+function render(r) {
+  const el = document.getElementById("results");
+  if (r.error) { el.innerHTML = `<div class="card"><p style="color:var(--red)">${PS.esc(r.error)}</p></div>`; return; }
+
+  const lex = r.lexical;
+  let html = `<div class="card result-section">
+    <div class="score-wrap">
+      ${PS.gauge(lex.score, "/ 100")}
+      <div>
+        <div class="verdict-text" style="color:${PS.scoreColor(lex.score)}">${PS.esc(lex.verdict)}</div>
+        <div class="verdict-sub">Domain: ${PS.esc(lex.domain)} · ${lex.findings.length} finding(s)</div>
+      </div>
+    </div>
+  </div>`;
+
+  if (lex.findings.length) {
+    html += `<div class="card result-section">
+      <div class="card-title"><i class="fa-solid fa-list-check"></i> Lexical Findings</div>
+      ${lex.findings.map(f => PS.indicator(f)).join("")}
+    </div>`;
+  } else {
+    html += `<div class="card result-section"><div class="empty-state"><i class="fa-solid fa-circle-check" style="color:var(--green)"></i><p>No suspicious lexical patterns detected.</p></div></div>`;
+  }
+
+  // DNS
+  const dns = r.dns;
+  html += `<div class="card result-section">
+    <div class="card-title"><i class="fa-solid fa-server"></i> DNS Resolution</div>
+    ${dns.resolved
+      ? `<p>Resolved to <span class="badge badge-info mono">${PS.esc(dns.ip)}</span> — host is live.</p>`
+      : `<p style="color:var(--text-mid)">Could not resolve domain: <span class="mono">${PS.esc(dns.error || "unknown error")}</span></p>`}
+  </div>`;
+
+  // VirusTotal
+  const vt = r.virustotal;
+  html += `<div class="card result-section">
+    <div class="card-title"><i class="fa-solid fa-shield-virus"></i> VirusTotal</div>`;
+  if (!vt.available) {
+    html += `<p style="color:var(--text-mid)">${PS.esc(vt.reason)}</p>`;
+  } else if (vt.status === "submitted") {
+    html += `<p>${PS.esc(vt.message)}</p>`;
+  } else if (vt.stats) {
+    const total = Object.values(vt.stats).reduce((a,b)=>a+b, 0);
+    html += `<div class="field-row" style="flex-wrap:wrap; gap:10px">
+      <span class="badge badge-high">Malicious: ${vt.stats.malicious || 0}</span>
+      <span class="badge badge-medium">Suspicious: ${vt.stats.suspicious || 0}</span>
+      <span class="badge badge-low">Harmless: ${vt.stats.harmless || 0}</span>
+      <span class="badge badge-neutral">Undetected: ${vt.stats.undetected || 0}</span>
+    </div>
+    <p style="margin-top:10px;color:var(--text-mid);font-size:12.5px">${total} engines scanned this URL.</p>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-shield-halved"></i> PhantomShield AI</h1>
+  <p>Unified cybersecurity platform — phishing detection, URL/malware analysis, CVE intel, threat feeds, and an AI security assistant, all in one place.</p>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card" style="--card-color:#00F5FF">
+    <div class="stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+    <h3>7 Security Modules</h3>
+    <p>One platform, zero context-switching between tools.</p>
+  </div>
+  <div class="stat-card" style="--card-color:#9B5DE5">
+    <div class="stat-icon"><i class="fa-solid fa-wifi"></i></div>
+    <h3>Offline-First Heuristics</h3>
+    <p>Core analysis works with no API keys or internet.</p>
+  </div>
+  <div class="stat-card" style="--card-color:#00FF88">
+    <div class="stat-icon"><i class="fa-solid fa-bolt"></i></div>
+    <h3>Live Intel Optional</h3>
+    <p>Plug in free API keys to unlock VirusTotal, NVD, OTX & Groq AI.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-grid-2"></i> Modules</div>
+  <div class="module-grid">
+
+    <a href="/phishing" class="module-card">
+      <div class="icon-wrap" style="--mc1:#FF3B5C;--mc2:#9B5DE5"><i class="fa-solid fa-envelope-circle-check"></i></div>
+      <h3>Phishing Analyzer</h3>
+      <p>Paste an email or message to detect social-engineering red flags, suspicious links, and brand impersonation.</p>
+    </a>
+
+    <a href="/url-scanner" class="module-card">
+      <div class="icon-wrap" style="--mc1:#00F5FF;--mc2:#9B5DE5"><i class="fa-solid fa-link-slash"></i></div>
+      <h3>URL Scanner</h3>
+      <p>Lexical analysis of any URL — IP-based hosts, typosquatting, shorteners, entropy, and optional VirusTotal lookup.</p>
+    </a>
+
+    <a href="/headers" class="module-card">
+      <div class="icon-wrap" style="--mc1:#00FF88;--mc2:#00F5FF"><i class="fa-solid fa-lock"></i></div>
+      <h3>Security Headers</h3>
+      <p>Grade any live website's HTTP security headers (CSP, HSTS, X-Frame-Options) A through F.</p>
+    </a>
+
+    <a href="/cve" class="module-card">
+      <div class="icon-wrap" style="--mc1:#9B5DE5;--mc2:#FF3B5C"><i class="fa-solid fa-bug"></i></div>
+      <h3>CVE Intelligence</h3>
+      <p>Search the NVD database by keyword, product, or CVE ID — get CVSS scores and severity ratings.</p>
+    </a>
+
+    <a href="/malware" class="module-card">
+      <div class="icon-wrap" style="--mc1:#FFD23F;--mc2:#FF3B5C"><i class="fa-solid fa-file-circle-exclamation"></i></div>
+      <h3>Malware Analysis</h3>
+      <p>Upload a file for static analysis — hashes, entropy, filetype mismatch, and embedded script detection.</p>
+    </a>
+
+    <a href="/threat-feed" class="module-card">
+      <div class="icon-wrap" style="--mc1:#00F5FF;--mc2:#00FF88"><i class="fa-solid fa-satellite-dish"></i></div>
+      <h3>Threat Feed Search</h3>
+      <p>Look up an IP, domain, or hash against ThreatFox, OTX, and AbuseIPDB threat intelligence feeds.</p>
+    </a>
+
+    <a href="/assistant" class="module-card">
+      <div class="icon-wrap" style="--mc1:#9B5DE5;--mc2:#00F5FF"><i class="fa-solid fa-robot"></i></div>
+      <h3>AI Security Assistant</h3>
+      <p>Ask anything about vulnerabilities, attack techniques, or defenses — powered by Groq LLaMA 3.3.</p>
+    </a>
+
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-key"></i> Optional API Keys</div>
+  <p style="color:var(--text-mid); font-size:13px; margin-bottom:14px;">
+    Every module works offline out of the box. Set these environment variables to unlock live threat intelligence:
+  </p>
+  <table>
+    <tr><th>Variable</th><th>Unlocks</th><th>Free Tier</th></tr>
+    <tr><td class="mono">VT_API_KEY</td><td>VirusTotal URL & hash reputation</td><td>Yes — virustotal.com</td></tr>
+    <tr><td class="mono">NVD_API_KEY</td><td>Higher CVE search rate limit</td><td>Yes — nvd.nist.gov</td></tr>
+    <tr><td class="mono">OTX_API_KEY</td><td>AlienVault OTX threat pulses</td><td>Yes — otx.alienvault.com</td></tr>
+    <tr><td class="mono">ABUSEIPDB_KEY</td><td>IP abuse confidence scoring</td><td>Yes — abuseipdb.com</td></tr>
+    <tr><td class="mono">GROQ_API_KEY</td><td>Full AI Assistant (LLaMA 3.3 70B)</td><td>Yes — console.groq.com</td></tr>
+  </table>
+</div>
+
+{% endblock %}

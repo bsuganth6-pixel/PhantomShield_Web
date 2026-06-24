@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Phishing Analyzer — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-envelope-circle-check"></i> Phishing Analyzer</h1>
+  <p>Paste a suspicious email or message below to scan for social-engineering red flags, malicious links, and brand impersonation.</p>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-pen"></i> Input</div>
+  <div class="field-row">
+    <div class="field">
+      <label>Sender Email (optional)</label>
+      <input type="text" id="sender" placeholder="security@paypa1-support.com">
+    </div>
+    <div class="field">
+      <label>Subject Line (optional)</label>
+      <input type="text" id="subject" placeholder="Urgent: Your account will be suspended">
+    </div>
+  </div>
+  <div class="field">
+    <label>Email Body / Message Text</label>
+    <textarea id="body" rows="8" placeholder="Paste the full email or message content here..."></textarea>
+  </div>
+  <button class="btn btn-primary" id="analyzeBtn" onclick="runAnalysis()">
+    <i class="fa-solid fa-magnifying-glass"></i> Analyze
+  </button>
+  <div class="loader" id="loader"><div class="spinner"></div> Analyzing content...</div>
+</div>
+
+<div id="results"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runAnalysis() {
+  const body = document.getElementById("body").value.trim();
+  if (!body) { alert("Please paste email content to analyze."); return; }
+
+  const btn = document.getElementById("analyzeBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/phishing/analyze", {
+    body: body,
+    sender: document.getElementById("sender").value.trim(),
+    subject: document.getElementById("subject").value.trim(),
+  });
+
+  PS.setLoading(loader, btn, false);
+  render(result);
+}
+
+function render(r) {
+  const el = document.getElementById("results");
+  if (r.error) { el.innerHTML = `<div class="card"><p style="color:var(--red)">${PS.esc(r.error)}</p></div>`; return; }
+
+  let html = `<div class="card result-section">
+    <div class="score-wrap">
+      ${PS.gauge(r.score, "/ 100")}
+      <div>
+        <div class="verdict-text" style="color:${PS.scoreColor(r.score)}">${PS.esc(r.verdict)}</div>
+        <div class="verdict-sub">${r.indicators.length} indicator(s) flagged · ${r.all_urls_found.length} link(s) found</div>
+      </div>
+    </div>
+  </div>`;
+
+  if (r.indicators.length) {
+    html += `<div class="card result-section">
+      <div class="card-title"><i class="fa-solid fa-list-check"></i> Indicators Found</div>
+      ${r.indicators.map(i => PS.indicator(i)).join("")}
+    </div>`;
+  }
+
+  if (r.urls && r.urls.length) {
+    html += `<div class="card result-section">
+      <div class="card-title"><i class="fa-solid fa-link"></i> Suspicious Links</div>`;
+    r.urls.forEach(u => {
+      html += `<div class="indicator sev-high">
+        <div class="indicator-icon"><i class="fa-solid fa-link-slash"></i></div>
+        <div class="indicator-body">
+          <strong class="mono" style="word-break:break-all">${PS.esc(u.url)}</strong>
+          <span>${u.flags.map(f => PS.esc(f)).join(" · ")}</span>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (r.all_urls_found.length && (!r.urls || r.urls.length < r.all_urls_found.length)) {
+    const clean = r.all_urls_found.filter(u => !(r.urls || []).some(x => x.url === u));
+    if (clean.length) {
+      html += `<div class="card result-section">
+        <div class="card-title"><i class="fa-solid fa-circle-check"></i> Other Links Found (No Red Flags)</div>
+        ${clean.map(u => `<span class="url-pill mono">${PS.esc(u)}</span>`).join("")}
+      </div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
+</script>
+{% endblock %}

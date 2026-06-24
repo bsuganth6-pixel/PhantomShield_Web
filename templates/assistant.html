@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}AI Assistant — PhantomShield AI{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="fa-solid fa-robot"></i> AI Security Assistant</h1>
+  <p>Ask anything about vulnerabilities, attack techniques, defenses, or tools. Powered by Groq LLaMA 3.3 (or offline knowledge base if no API key set).</p>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <i class="fa-solid fa-comments"></i> Chat
+    <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="clearChat()"><i class="fa-solid fa-trash"></i> Clear</button>
+  </div>
+
+  <div class="chat-window" id="chatWindow">
+    <div class="chat-msg bot">
+      <div class="chat-avatar"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="chat-bubble">Hey, I'm your PhantomShield AI Security Assistant. Ask me about CVEs, attack techniques, OWASP categories, tools like Nmap/Burp/Metasploit, or general security best practices.</div>
+    </div>
+  </div>
+
+  <div class="loader" id="loader"><div class="spinner"></div> Thinking...</div>
+
+  <div class="chat-input-row">
+    <input type="text" id="questionInput" placeholder="e.g. How does SQL injection work and how do I prevent it?" onkeydown="if(event.key==='Enter') sendMessage()">
+    <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i> Send</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa-solid fa-lightbulb"></i> Try Asking</div>
+  <div style="display:flex; flex-wrap:wrap; gap:8px">
+    <span class="url-pill" style="cursor:pointer" onclick="quickAsk(this)">Explain Log4Shell (CVE-2021-44228)</span>
+    <span class="url-pill" style="cursor:pointer" onclick="quickAsk(this)">How does ARP spoofing work?</span>
+    <span class="url-pill" style="cursor:pointer" onclick="quickAsk(this)">Best practices for securing an API</span>
+    <span class="url-pill" style="cursor:pointer" onclick="quickAsk(this)">What is the OWASP Top 10?</span>
+    <span class="url-pill" style="cursor:pointer" onclick="quickAsk(this)">How do I detect a phishing email?</span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function quickAsk(el) {
+  document.getElementById("questionInput").value = el.textContent.trim();
+  sendMessage();
+}
+
+function appendMsg(role, text) {
+  const win = document.getElementById("chatWindow");
+  const div = document.createElement("div");
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = `
+    <div class="chat-avatar"><i class="fa-solid fa-${role==='user'?'user':'shield-halved'}"></i></div>
+    <div class="chat-bubble">${PS.esc(text)}</div>`;
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById("questionInput");
+  const q = input.value.trim();
+  if (!q) return;
+
+  appendMsg("user", q);
+  input.value = "";
+
+  const btn = document.getElementById("sendBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/assistant/ask", { question: q });
+
+  PS.setLoading(loader, btn, false);
+  appendMsg("bot", result.answer || result.error || "Something went wrong.");
+}
+
+async function clearChat() {
+  await fetch("/api/assistant/clear", { method: "POST" });
+  document.getElementById("chatWindow").innerHTML = `
+    <div class="chat-msg bot">
+      <div class="chat-avatar"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="chat-bubble">Chat cleared. What would you like to know?</div>
+    </div>`;
+}
+</script>
+{% endblock %}
