@@ -42,19 +42,32 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <script>
 function quickAsk(el) {
   document.getElementById("questionInput").value = el.textContent.trim();
   sendMessage();
 }
 
+function renderBotContent(text) {
+  // Parse Markdown (headers, **bold**, lists, etc.) into real HTML, then sanitize it.
+  if (typeof marked === "undefined") {
+    return PS.esc(text).replace(/\n/g, "<br>");
+  }
+  const rawHtml = marked.parse(text, { breaks: true, gfm: true });
+  return (typeof DOMPurify !== "undefined") ? DOMPurify.sanitize(rawHtml) : rawHtml;
+}
+
 function appendMsg(role, text) {
   const win = document.getElementById("chatWindow");
   const div = document.createElement("div");
   div.className = `chat-msg ${role}`;
+  const bubbleClass = role === "user" ? "chat-bubble plain" : "chat-bubble";
+  const bodyHtml = role === "user" ? PS.esc(text) : renderBotContent(text);
   div.innerHTML = `
     <div class="chat-avatar"><i class="fa-solid fa-${role==='user'?'user':'shield-halved'}"></i></div>
-    <div class="chat-bubble">${PS.esc(text)}</div>`;
+    <div class="${bubbleClass}">${bodyHtml}</div>`;
   win.appendChild(div);
   win.scrollTop = win.scrollHeight;
 }
@@ -82,7 +95,7 @@ async function clearChat() {
   document.getElementById("chatWindow").innerHTML = `
     <div class="chat-msg bot">
       <div class="chat-avatar"><i class="fa-solid fa-shield-halved"></i></div>
-      <div class="chat-bubble">Chat cleared. What would you like to know?</div>
+      <div class="chat-bubble plain">Chat cleared. What would you like to know?</div>
     </div>`;
 }
 </script>
