@@ -14,59 +14,67 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 SYSTEM_PROMPT = (
     "You are PhantomShield AI Security Assistant, an expert in cybersecurity, "
-    "ethical hacking, threat analysis, malware, and network security. "
-    "Give concise, accurate, practical answers. When relevant, mention specific "
-    "tools, CVEs, OWASP categories, or mitigation steps. Never provide actual "
-    "working exploit code for unpatched/zero-day vulnerabilities or step-by-step "
-    "attack instructions against real, named targets."
+    "ethical hacking, threat analysis, malware, and network security.\n\n"
+    "FORMATTING RULES — follow these strictly:\n"
+    "- Start with a single '## ' header naming the topic.\n"
+    "- Use '### ' headers to break the answer into clear subsections "
+    "(e.g. How It Works, Red Flags, Best Practices, Tools).\n"
+    "- Use **bold** only for short key terms inline, never as a substitute for a header.\n"
+    "- Use numbered lists for sequential steps and bullet lists for unordered items.\n"
+    "- Keep paragraphs short (2-3 sentences max).\n"
+    "- Do not write one long wall of text — break it up with headers and lists.\n\n"
+    "Give concise, accurate, practical answers grounded in real tools, CVEs, and "
+    "OWASP categories where relevant. Never provide actual working exploit "
+    "code for unpatched/zero-day vulnerabilities or step-by-step attack "
+    "instructions against real, named targets."
 )
 
-# ── Offline fallback knowledge base (keyword → canned expert answer) ──
+# ── Offline fallback knowledge base: (keywords, display title, canned answer) ──
 KB = [
-    (["sql injection", "sqli"],
+    (["sql injection", "sqli"], "SQL Injection",
      "SQL Injection occurs when untrusted input is concatenated into SQL queries. "
      "Mitigate with parameterized queries/prepared statements, ORM usage, least-privilege "
      "DB accounts, and input validation. Test with tools like sqlmap (authorized environments only)."),
-    (["xss", "cross-site scripting"],
+    (["xss", "cross-site scripting"], "Cross-Site Scripting (XSS)",
      "XSS lets attackers inject scripts into pages viewed by other users. Prevent it with "
      "output encoding/escaping, a strict Content-Security-Policy, HttpOnly+Secure cookies, "
      "and frameworks that auto-escape (React, Vue) instead of raw innerHTML."),
-    (["csrf", "cross-site request forgery"],
+    (["csrf", "cross-site request forgery"], "Cross-Site Request Forgery (CSRF)",
      "CSRF tricks a logged-in user's browser into making unwanted requests. Defend with "
      "anti-CSRF tokens (synchronizer token pattern), SameSite=Strict/Lax cookies, and "
      "re-authentication for sensitive actions."),
-    (["phishing"],
+    (["phishing"], "Phishing",
      "Phishing relies on social engineering. Red flags: urgency language, mismatched sender "
      "domains, shortened/IP-based links, generic greetings, and unexpected attachments. "
      "Defend with email authentication (SPF/DKIM/DMARC), user training, and link sandboxing."),
-    (["firewall"],
+    (["firewall"], "Firewalls",
      "A firewall filters traffic based on rules (IP, port, protocol, or application-layer). "
      "Stateful firewalls track connection state; next-gen firewalls add deep packet inspection "
      "and IDS/IPS integration. Always follow least-privilege: deny by default, allow by exception."),
-    (["zero day", "0day", "zero-day"],
+    (["zero day", "0day", "zero-day"], "Zero-Day Vulnerabilities",
      "A zero-day is a vulnerability unknown to the vendor with no patch available. Mitigation "
      "relies on defense-in-depth: network segmentation, EDR/behavioral detection, virtual "
      "patching via WAF rules, and rapid patch management once a fix ships."),
-    (["man in the middle", "mitm"],
+    (["man in the middle", "mitm"], "Man-in-the-Middle (MITM) Attacks",
      "MITM attacks intercept communication between two parties — via ARP spoofing, rogue Wi-Fi "
      "APs, or DNS spoofing. Defenses: TLS/HTTPS everywhere, certificate pinning, VPNs on "
      "untrusted networks, and DNSSEC."),
-    (["ransomware"],
+    (["ransomware"], "Ransomware",
      "Ransomware encrypts files and demands payment. Prevention: offline/immutable backups "
      "(3-2-1 rule), email attachment sandboxing, EDR with ransomware behavior detection, "
      "least-privilege + network segmentation to limit lateral spread, and patched RDP/VPN access."),
-    (["owasp top 10", "owasp"],
+    (["owasp top 10", "owasp"], "OWASP Top 10",
      "OWASP Top 10 (2021) categories: Broken Access Control, Cryptographic Failures, Injection, "
      "Insecure Design, Security Misconfiguration, Vulnerable Components, Auth Failures, "
      "Data Integrity Failures, Logging Failures, and SSRF."),
-    (["password", "brute force"],
+    (["password", "brute force"], "Password Security & Brute Force",
      "Strong password policy: 12+ chars, no reuse, stored via bcrypt/argon2 (never plaintext/MD5). "
      "Mitigate brute force with rate limiting, account lockout/backoff, MFA, and CAPTCHA on login."),
-    (["nmap"],
+    (["nmap"], "Nmap",
      "Nmap is used for host discovery and port scanning. Common flags: -sS (SYN scan), "
      "-sV (version detection), -O (OS detection), -A (aggressive), -p- (all ports). "
      "Only scan systems you own or are authorized to test."),
-    (["vpn"],
+    (["vpn"], "VPNs",
      "A VPN creates an encrypted tunnel between your device and a server, hiding traffic from "
      "local network observers and masking your IP. It does not anonymize you from the VPN "
      "provider itself — choose providers with audited no-logs policies."),
@@ -75,15 +83,17 @@ KB = [
 
 def _kb_fallback(question):
     q = question.lower()
-    matches = []
-    for keywords, answer in KB:
+    sections = []
+    for keywords, title, answer in KB:
         if any(k in q for k in keywords):
-            matches.append(answer)
-    if matches:
-        return "\n\n".join(matches[:2]) + \
-               "\n\n_[Offline knowledge base response — configure GROQ_API_KEY for full AI chat.]_"
-    return ("I don't have an offline answer for that specific question. "
-            "Configure GROQ_API_KEY (free tier at console.groq.com) to unlock full "
+            sections.append(f"## {title}\n\n{answer}")
+    if sections:
+        body = "\n\n---\n\n".join(sections[:2])
+        return (f"{body}\n\n---\n\n"
+                f"*Offline knowledge base response — configure `GROQ_API_KEY` for full AI chat.*")
+    return ("## No Offline Match\n\n"
+            "I don't have an offline answer for that specific question.\n\n"
+            "Configure `GROQ_API_KEY` (free tier at console.groq.com) to unlock full "
             "AI-powered answers for any security topic.")
 
 
